@@ -51,7 +51,7 @@ knockout_column <- function(maxWidth = 70, class = NULL, ...) {
 }
 
 
-playoff_column <- function(maxWidth = 70, class = NULL, ...) {
+playoff_column <- function(maxWidth = 70, class = NULL, borderLeft = NULL, ...) {
   colDef(
     cell = format_pct,
     maxWidth = maxWidth,
@@ -59,9 +59,9 @@ playoff_column <- function(maxWidth = 70, class = NULL, ...) {
     style = function(value) {
       # Lighter color for <1%
       if (value < 0.01) {
-        list(color = "#aaa")
+        list(color = "#aaa", borderLeft = borderLeft)
       } else {
-        list(color = "#111", background = playoff_pct_color(value))
+        list(color = "#111", background = knockout_pct_color(value), borderLeft = borderLeft)
       }
     },
     ...
