@@ -1,14 +1,12 @@
 library(tidyverse)
 library(ffscrapr)
 
+source('helper_plot.R')
 
-my_league <- ff_connect("sleeper", "1121217308480954368", season = 2024) # hot boyz
+my_league <- ff_connect("sleeper", "1121217308480954368", season = 2024)
 my_league
 
 set.seed(527)
-
-my_league <- ff_connect("sleeper", "1045662785243389952", season = 2024) # unbound keeper
-my_league
 
 df <- ff_schedule(my_league)
 franchises <- ff_franchises(my_league)
