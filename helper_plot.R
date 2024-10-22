@@ -32,6 +32,7 @@ def_rating_color <- make_color_pal(c("white", "pink", "orangered", "#ff1010"), b
 knockout_pct_color <- make_color_pal(c("#ffffff", "#f2fbd2", "#c9ecb4", "#93d3ab", "#35b0ab"), bias = 2)
 playoff_pct_color <- make_color_pal(c("#ffffff", "#ABBDFF", "#DA84bb", "#9471a4"), bias = 2)
 loser_pct_column <- make_color_pal(c("#ffffff", "lightpink", "#fFA6BE"), bias = 2)
+loser_pct_column <- make_color_pal(c("#ffffff", "#F0F0F0", "#888888"), bias = 2)
 
 knockout_column <- function(maxWidth = 70, class = NULL, ...) {
   colDef(
@@ -78,7 +79,7 @@ loser_column <- function(maxWidth = 70, class = NULL, borderRight = NULL, ...) {
       if (value < 0.01) {
         list(color = "#aaa", borderRight = borderRight)
       } else {
-        list(color = "#111", background = "white", borderRight = borderRight) # loser_pct_column(value))
+        list(color = "#111", background = loser_pct_column(value), borderRight = borderRight) # loser_pct_column(value))
       }
     },
     ...

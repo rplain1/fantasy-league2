@@ -9,13 +9,13 @@ source('helper_plot.R')
 my_league <- ff_connect("sleeper", "1121217308480954368", season = 2024)
 my_league
 
-# my_league <- ff_connect("sleeper", "1045662785243389952", season = 2024) # unbound keeper
-# my_league
+my_league <- ff_connect("sleeper", "1045662785243389952", season = 2024) # unbound keeper
+my_league
 
 
 set.seed(527)
 
-WEEK = 6
+WEEK = 7
 SIMS = 10000
 PLAYOFF_SIZE = 4
 
@@ -24,7 +24,7 @@ franchises <- ff_franchises(my_league)
 standings <- ff_standings(my_league)
 
 df_input <- df |>
-  filter(week <= 6) |>
+  filter(week <= WEEK) |>
   left_join(franchises)
 
 mean_scores = mean(df_input$franchise_score)
@@ -47,7 +47,12 @@ fit <- brm(
 con <- dbConnect(duckdb(), dbdir = ":memory:")
 dbWriteTable(con, "scores", franchises |>
   add_epred_draws(fit) |>
-  ungroup(),
+  ungroup() |>
+  mutate(
+    inj_factor = runif(n()),
+    inj_adj = rbeta(n(), 8, 3),
+    .epred = ifelse(inj_factor <= .10, .epred * inj_adj, .epred)
+  ),
 overwrite = TRUE
 )
 rm(fit)
@@ -311,7 +316,7 @@ playoff_table <- current_standings |>
   relocate(power_rank, .after = wins) |>
   relocate(playoffs, .after = bye) |>
   mutate(
-    wins = paste0(wins, "-", 6 - wins)
+    wins = paste0(wins, "-", WEEK - wins)
   ) |>
   select(-franchise_id, -x, -starts_with("sim_")) |>
   replace_na(list(bye = 0, playoffs = 0, finals = 0, winner = 0))
@@ -319,6 +324,84 @@ playoff_table <- current_standings |>
 
 
 playoff_table
+#saveRDS(playoff_table, "~/git-repos/ff-website/data/playoff_table.rds")
+reactable(
+  playoff_table,
+  theme = reactablefmtr::fivethirtyeight(),
+  highlight = TRUE,
+  defaultPageSize = 12,
+  # columnGroups = list(
+  #   # colGroup(name = "Points", columns = c('pf', 'pa')),
+  #   #colGroup(name = "Regular Season", columns = c('bye', 'last')),
+  #   colGroup(name = "Postseason Projections", columns = c('last', 'bye', 'playoffs', 'semi_finals', 'finals', 'winner'))
+  # ),
+  columns = list(
+    rank = colDef(
+      width = 60,
+      align = "center",
+      name = "Rank",
+      style = list(borderRight = "2px solid #777")
+    ),
+    franchise_name = colDef(
+      # show = FALSE,
+      name = "Team",
+      maxWidth = 200
+    ),
+    power_rank = colDef(
+      name = "Team Strength",
+      maxWidth = 80,
+      # cell = pill_buttons(
+      #   df3,
+      #   colors = c('lightpink', '#f8fcf8', 'lightgreen')
+      # )
+      cell = icon_assign(playoff_table, icon = "fire", fill_color = "orangered", empty_color = "lightgrey", buckets = 5)
+    ),
+    wins = colDef(
+      # align = 'left',
+      align = "center",
+      name = "Record",
+      maxWidth = 70,
+      # maxWidth = 150,
+      # cell = icon_assign(df3, icon = 'trophy', fill_color = 'goldenrod', empty_opacity = 0)
+    ),
+    pf = rating_column(
+      name = "PF",
+      style = function(value) {
+        scaled <- (value - min(playoff_table$pf)) / (max(playoff_table$pf) - min(playoff_table$pf))
+        color <- off_rating_color(scaled)
+        value <- format(round(value))
+        list(background = color)
+      }
+    ),
+    pa = rating_column(
+      name = "PA",
+      style = function(value) {
+        scaled <- (value - min(playoff_table$pa)) / (max(playoff_table$pa) - min(playoff_table$pa))
+        color <- def_rating_color(scaled)
+        value <- format(round(value))
+        list(background = color)
+      }
+    ),
+    bye = playoff_column(
+      #show = FALSE,
+      name = "1st Round Bye", class = "border-left", borderLeft = "2px solid #000000"),
+    # loser_bracket = colDef(show = FALSE),
+    # loser_bracket = loser_column(name = 'Losers Bracket', class = 'border-left'),
+    # last_place = colDef(show = FALSE),
+    #bye = loser_column(name = 'Bye', class = 'border-left', borderRight = '2px solid #000000'),
+    #playoffs = playoff_column(name = "Playoff", class = "border-left", borderLeft = '1px solid #000000'),
+    playoffs = knockout_column(name = "Playoff", class = "border-left"),
+    semi_finals = knockout_column(name = "Semi-Finals", class = "border-left"),
+    finals = knockout_column(name = "Finals", class = "border-left"),
+    winner = knockout_column(name = "Winner", class = "border-left")
+  )
+)
+
+
+
+
+
+# unbound
 
 reactable(
   playoff_table,
@@ -377,16 +460,36 @@ reactable(
         list(background = color)
       }
     ),
-    bye = loser_column(
-      show = FALSE,
-      name = "1st Round Bye", class = "border-left", borderRight = "2px solid #000000"),
     # loser_bracket = colDef(show = FALSE),
     # loser_bracket = loser_column(name = 'Losers Bracket', class = 'border-left'),
     # last_place = colDef(show = FALSE),
-    #bye = loser_column(name = 'Last Place', class = 'border-left', borderRight = '2px solid #000000'),
+    bye = colDef(show = FALSE),
+    # playoffs = playoff_column(name = "Playoff", class = "border-left", borderLeft = '1px solid #000000'),
     playoffs = playoff_column(name = "Playoff", class = "border-left", borderLeft = '2px solid #000000'),
     #semi_finals = knockout_column(name = "Semi-Finals", class = "border-left"),
     finals = knockout_column(name = "Finals", class = "border-left"),
     winner = knockout_column(name = "Winner", class = "border-left")
   )
 )
+
+
+ff_standings(my_league)
+
+
+df |>
+  filter(week <= 7) |>
+  group_by(week) |>
+  mutate(med_score = median(franchise_score)) |>
+  ungroup() |>
+  mutate(
+    h2h_win = franchise_score > opponent_score,
+    med_win = franchise_score > med_score
+  ) |>
+  group_by(franchise_id) |>
+  summarise(
+    wins = sum(h2h_win),
+    median_wins = sum(med_win) + wins,
+    pf = sum(franchise_score)
+  ) |>
+  mutate(losses = WEEK - wins, median_losses = (WEEK*2) - median_wins) |>
+  left_join(franchises) |> arrange(-median_wins, -pf)
